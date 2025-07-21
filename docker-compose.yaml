@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:17.5-alpine3.22
+    restart: unless-stopped
+    volumes:
+      - ./server/migrations:/docker-entrypoint-initdb.d
+      - pg_data:/var/lib/postgresql/data
+    environment:
+      LC_ALL: C.UTF-8
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: book_notes
+    ports:
+      - "5432:5432"
+
+volumes:
+  pg_data:
