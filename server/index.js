@@ -1,5 +1,4 @@
 import express from "express";
-import bodyParser from "body-parser";
 import pg from "pg";
 
 const app = express();
@@ -50,6 +49,28 @@ async function getNoteById(db, id) {
   return formatResponse(result);
 }
 
+async function createNote(db, note) {
+  const result = await db.query(
+    `INSERT INTO book_notes (title, author, isbn, cover_url, date_read, score, summary, note)
+     VALUES (($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8))
+     RETURNING *`,
+    [
+      note.title,
+      note.author,
+      note.isbn,
+      note.cover_url,
+      note.date_read,
+      note.score,
+      note.summary,
+      note.note,
+    ]
+  );
+
+  return formatResponse(result);
+}
+
+app.use(express.json());
+
 app.get("/notes", async (_, res) => {
   let db = new pg.Client(dbCfg);
   db.connect();
@@ -57,7 +78,10 @@ app.get("/notes", async (_, res) => {
   let notes = await getNoteList(db);
   db.end();
 
-  res.send(notes);
+  res.send({
+    status: 200,
+    data: notes,
+  });
 });
 
 app.get("/note/:id", async (req, res) => {
@@ -67,7 +91,22 @@ app.get("/note/:id", async (req, res) => {
   let note = await getNoteById(db, req.params.id);
   db.end();
 
-  res.send(note);
+  res.send({
+    status: 200,
+    data: note,
+  });
+});
+
+app.post("/note", async (req, res) => {
+  let db = new pg.Client(dbCfg);
+  db.connect();
+
+  let newNote = await createNote(db, req.body);
+
+  res.send({
+    status: 200,
+    data: newNote,
+  });
 });
 
 app.listen(port, () => {
