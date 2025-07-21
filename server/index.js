@@ -13,10 +13,8 @@ const dbCfg = {
   password: "postgres",
 };
 
-async function getNoteList(db) {
-  const result = await db.query("SELECT * FROM book_notes");
-
-  let noteList = [];
+function formatResponse(result) {
+  var noteList = [];
 
   result.rows.forEach((item) => {
     let day = item.date_read.getDate();
@@ -42,6 +40,16 @@ async function getNoteList(db) {
   return noteList;
 }
 
+async function getNoteList(db) {
+  const result = await db.query("SELECT * FROM book_notes");
+  return formatResponse(result);
+}
+
+async function getNoteById(db, id) {
+  const result = await db.query("SELECT * FROM book_notes WHERE id=($1)", [id]);
+  return formatResponse(result);
+}
+
 app.get("/notes", async (_, res) => {
   let db = new pg.Client(dbCfg);
   db.connect();
@@ -50,6 +58,16 @@ app.get("/notes", async (_, res) => {
   db.end();
 
   res.send(notes);
+});
+
+app.get("/note/:id", async (req, res) => {
+  let db = new pg.Client(dbCfg);
+  db.connect();
+
+  let note = await getNoteById(db, req.params.id);
+  db.end();
+
+  res.send(note);
 });
 
 app.listen(port, () => {
