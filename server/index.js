@@ -143,6 +143,20 @@ async function editNote(note) {
   }
 }
 
+async function deleteNoteById(id) {
+  let db = new pg.Client(dbCfg);
+  db.connect();
+
+  try {
+    await db.query("DELETE FROM book_notes WHERE id=($1)", [id]);
+    return null;
+  } catch (err) {
+    return err;
+  } finally {
+    db.end();
+  }
+}
+
 app.use(express.json());
 
 app.get("/notes", async (_, res) => {
@@ -162,7 +176,16 @@ app.get("/notes", async (_, res) => {
 });
 
 app.get("/note/:id", async (req, res) => {
-  var [note, err] = await getNoteById(req.params.id);
+  let id = req.params.id;
+  if (!id) {
+    res.send({
+      status: 400,
+      err: "Note's ID must be specified",
+    });
+    return;
+  }
+
+  var [note, err] = await getNoteById(id);
   if (err) {
     res.send({
       status: 400,
@@ -282,6 +305,30 @@ app.put("/note", async (req, res) => {
   res.send({
     status: 200,
     data: editedNote,
+  });
+});
+
+app.delete("/note/:id", async (req, res) => {
+  let id = req.params.id;
+  if (!id) {
+    res.send({
+      status: 400,
+      err: "Note's ID must be specified",
+    });
+    return;
+  }
+
+  var err = await deleteNoteById(id);
+  if (err) {
+    res.send({
+      status: 400,
+      err: err,
+    });
+    return;
+  }
+
+  res.send({
+    status: 200,
   });
 });
 
