@@ -13,7 +13,7 @@ const dbCfg = {
 };
 
 function formatResponse(result) {
-  var noteList = [];
+  let noteList = [];
 
   result.rows.forEach((item) => {
     let day = item.date_read.getDate();
@@ -49,24 +49,33 @@ async function getNoteById(db, id) {
   return formatResponse(result);
 }
 
-async function createNote(db, note) {
-  const result = await db.query(
-    `INSERT INTO book_notes (title, author, isbn, cover_url, date_read, score, summary, note)
+async function createNote(note) {
+  const db = new pg.Client(dbCfg);
+  db.connect();
+
+  try {
+    const result = await db.query(
+      `INSERT INTO book_notes (title, author, isbn, cover_url, date_read, score, summary, note)
      VALUES (($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8))
      RETURNING *`,
-    [
-      note.title,
-      note.author,
-      note.isbn,
-      note.cover_url,
-      note.date_read,
-      note.score,
-      note.summary,
-      note.note,
-    ]
-  );
+      [
+        note.title,
+        note.author,
+        note.isbn,
+        note.cover_url,
+        note.date_read,
+        note.score,
+        note.summary,
+        note.note,
+      ]
+    );
 
-  return formatResponse(result);
+    return [formatResponse(result), null];
+  } catch (err) {
+    return [null, err];
+  } finally {
+    db.end();
+  }
 }
 
 app.use(express.json());
@@ -98,10 +107,37 @@ app.get("/note/:id", async (req, res) => {
 });
 
 app.post("/note", async (req, res) => {
-  let db = new pg.Client(dbCfg);
-  db.connect();
+  if (!req.body.title) {
+    res.send({
+      status: 400,
+      error: "Book's title must be specified.",
+    });
+    return;
+  }
+  if (!req.body.author) {
+    res.send({
+      status: 400,
+      error: "Book's author must be specified.",
+    });
+    return;
+  }
+  if (!req.body.isbn) {
+    res.send({
+      status: 400,
+      error: "Book's ISBN must be specified.",
+    });
+    return;
+  }
 
-  let newNote = await createNote(db, req.body);
+  let [newNote, err] = await createNote(req.body);
+
+  if (err) {
+    res.send({
+      status: 400,
+      error: err,
+    });
+    return;
+  }
 
   res.send({
     status: 200,
