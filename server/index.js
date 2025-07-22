@@ -3,7 +3,6 @@ import pg from "pg";
 
 const app = express();
 const port = 3000;
-
 const dbCfg = {
   host: "localhost",
   port: 5432,
@@ -11,6 +10,9 @@ const dbCfg = {
   user: "postgres",
   password: "postgres",
 };
+const bookCoverUrl = "https://covers.openlibrary.org/b/isbn/";
+const bookCoverSize = "M";
+const bookCoverFormat = ".jpg";
 
 function formatResponse(result) {
   let noteList = [];
@@ -31,6 +33,8 @@ function formatResponse(result) {
       score: item.score,
       summary: item.summary,
       note: item.note,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
     };
 
     noteList.push(note);
@@ -77,8 +81,9 @@ async function createNote(note) {
   try {
     const result = await db.query(
       `INSERT INTO book_notes (title, author, isbn, cover_url, date_read, score, summary, note)
-     VALUES (($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8))
-     RETURNING *`,
+        VALUES (($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8))
+        RETURNING *
+      `,
       [
         note.title,
         note.author,
@@ -99,11 +104,49 @@ async function createNote(note) {
   }
 }
 
+async function editNote(note) {
+  const db = new pg.Client(dbCfg);
+  db.connect();
+
+  try {
+    const result = await db.query(
+      `UPDATE book_notes
+        SET title = ($1),
+           author = ($2),
+           isbn = ($3),
+           cover_url = ($4),
+           date_read = ($5),
+           score = ($6),
+           summary = ($7),
+           note = ($8),
+           updated_at = NOW()
+        WHERE id = $9
+        RETURNING *
+      `,
+      [
+        note.title,
+        note.author,
+        note.isbn,
+        note.cover_url,
+        note.date_read,
+        note.score,
+        note.summary,
+        note.note,
+        note.id,
+      ]
+    );
+    return [formatResponse(result), null];
+  } catch (err) {
+    return [null, err];
+  } finally {
+    db.end();
+  }
+}
+
 app.use(express.json());
 
 app.get("/notes", async (_, res) => {
-  let [notes, err] = await getNoteList();
-
+  var [notes, err] = await getNoteList();
   if (err) {
     res.send({
       status: 400,
@@ -119,8 +162,7 @@ app.get("/notes", async (_, res) => {
 });
 
 app.get("/note/:id", async (req, res) => {
-  let [note, err] = await getNoteById(req.params.id);
-
+  var [note, err] = await getNoteById(req.params.id);
   if (err) {
     res.send({
       status: 400,
@@ -158,8 +200,10 @@ app.post("/note", async (req, res) => {
     return;
   }
 
-  let [newNote, err] = await createNote(req.body);
+  req.body.cover_url =
+    bookCoverUrl + req.body.isbn + "-" + bookCoverSize + bookCoverFormat;
 
+  var [newNote, err] = await createNote(req.body);
   if (err) {
     res.send({
       status: 400,
@@ -171,6 +215,73 @@ app.post("/note", async (req, res) => {
   res.send({
     status: 200,
     data: newNote,
+  });
+});
+
+app.put("/note", async (req, res) => {
+  let id = req.body.id;
+  if (!id) {
+    res.send({
+      status: 400,
+      err: "Note's ID must be specified",
+    });
+    return;
+  }
+
+  var [note, err] = await getNoteById(id);
+  if (err) {
+    res.send({
+      status: 400,
+      err: err,
+    });
+    return;
+  }
+
+  if (note.length === 0) {
+    res.send({
+      status: 400,
+      err: "Note doesn't exist.",
+    });
+    return;
+  }
+
+  if (!req.body.title) {
+    res.send({
+      status: 400,
+      error: "Book's title must be specified.",
+    });
+    return;
+  }
+  if (!req.body.author) {
+    res.send({
+      status: 400,
+      error: "Book's author must be specified.",
+    });
+    return;
+  }
+  if (!req.body.isbn) {
+    res.send({
+      status: 400,
+      error: "Book's ISBN must be specified.",
+    });
+    return;
+  }
+
+  req.body.cover_url =
+    bookCoverUrl + req.body.isbn + "-" + bookCoverSize + bookCoverFormat;
+
+  var [editedNote, err] = await editNote(req.body);
+  if (err) {
+    res.send({
+      status: 400,
+      error: err,
+    });
+    return;
+  }
+
+  res.send({
+    status: 200,
+    data: editedNote,
   });
 });
 
