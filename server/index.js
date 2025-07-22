@@ -39,14 +39,35 @@ function formatResponse(result) {
   return noteList;
 }
 
-async function getNoteList(db) {
-  const result = await db.query("SELECT * FROM book_notes");
-  return formatResponse(result);
+async function getNoteList() {
+  let db = new pg.Client(dbCfg);
+  db.connect();
+
+  try {
+    const result = await db.query("SELECT * FROM book_notes");
+    return [formatResponse(result), null];
+  } catch (err) {
+    return [null, err];
+  } finally {
+    db.end();
+  }
 }
 
-async function getNoteById(db, id) {
-  const result = await db.query("SELECT * FROM book_notes WHERE id=($1)", [id]);
-  return formatResponse(result);
+async function getNoteById(id) {
+  let db = new pg.Client(dbCfg);
+  db.connect();
+
+  try {
+    const result = await db.query("SELECT * FROM book_notes WHERE id=($1)", [
+      id,
+    ]);
+
+    return [formatResponse(result), null];
+  } catch (err) {
+    return [null, err];
+  } finally {
+    db.end();
+  }
 }
 
 async function createNote(note) {
@@ -81,11 +102,15 @@ async function createNote(note) {
 app.use(express.json());
 
 app.get("/notes", async (_, res) => {
-  let db = new pg.Client(dbCfg);
-  db.connect();
+  let [notes, err] = await getNoteList();
 
-  let notes = await getNoteList(db);
-  db.end();
+  if (err) {
+    res.send({
+      status: 400,
+      err: err,
+    });
+    return;
+  }
 
   res.send({
     status: 200,
@@ -94,11 +119,15 @@ app.get("/notes", async (_, res) => {
 });
 
 app.get("/note/:id", async (req, res) => {
-  let db = new pg.Client(dbCfg);
-  db.connect();
+  let [note, err] = await getNoteById(req.params.id);
 
-  let note = await getNoteById(db, req.params.id);
-  db.end();
+  if (err) {
+    res.send({
+      status: 400,
+      err: err,
+    });
+    return;
+  }
 
   res.send({
     status: 200,
