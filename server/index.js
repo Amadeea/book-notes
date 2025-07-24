@@ -455,7 +455,7 @@ app.post("/user/login", async (req, res, next) => {
         return res.send({
           status: 200,
           message: "Login successful",
-          user: user,
+          // user: user,
         });
       });
     } catch (error) {
@@ -480,7 +480,7 @@ app.post("/user/register", async (req, res, next) => {
         return res.send({
           status: 200,
           message: "Registration successful and logged in",
-          user: user,
+          // user: user,
         });
       });
     } catch (error) {
