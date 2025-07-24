@@ -266,7 +266,7 @@ async function deleteNoteById(id) {
   }
 }
 
-app.get("/note/list", async (_, res) => {
+app.get("/notes/list", async (_, res) => {
   var [notes, err] = await getNoteList();
   if (err) {
     res.send({
@@ -282,7 +282,7 @@ app.get("/note/list", async (_, res) => {
   });
 });
 
-app.get("/note/:id", async (req, res) => {
+app.get("/notes/:id", async (req, res) => {
   let id = req.params.id;
   if (!id) {
     res.send({
@@ -307,7 +307,7 @@ app.get("/note/:id", async (req, res) => {
   });
 });
 
-app.post("/note", async (req, res) => {
+app.post("/notes", async (req, res) => {
   if (!req.body.title) {
     res.send({
       status: 400,
@@ -348,7 +348,7 @@ app.post("/note", async (req, res) => {
   });
 });
 
-app.put("/note", async (req, res) => {
+app.put("/notes", async (req, res) => {
   let id = req.body.id;
   if (!id) {
     res.send({
@@ -415,7 +415,7 @@ app.put("/note", async (req, res) => {
   });
 });
 
-app.delete("/note/:id", async (req, res) => {
+app.delete("/notes/:id", async (req, res) => {
   let id = req.params.id;
   if (!id) {
     res.send({
@@ -439,7 +439,7 @@ app.delete("/note/:id", async (req, res) => {
   });
 });
 
-app.post("/user/login", async (req, res, next) => {
+app.post("/users/login", async (req, res, next) => {
   passport.authenticate("login", async (err, user, info) => {
     try {
       if (err) {
@@ -464,7 +464,7 @@ app.post("/user/login", async (req, res, next) => {
   })(req, res, next);
 });
 
-app.post("/user/register", async (req, res, next) => {
+app.post("/users/register", async (req, res, next) => {
   passport.authenticate("register", async (err, user, info) => {
     try {
       if (err) {
@@ -487,6 +487,18 @@ app.post("/user/register", async (req, res, next) => {
       return next(error);
     }
   })(req, res, next);
+});
+
+app.get("/users/login-check", (req, res, next) => {
+  if (req.isAuthenticated()) {
+    return res.send({
+      status: 200,
+      message: "User is authenticated",
+      // user: req.user,
+    });
+  } else {
+    return res.status(401).send({ error: "User is not authenticated" });
+  }
 });
 
 app.listen(port, (err) => {
