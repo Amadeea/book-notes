@@ -58,7 +58,7 @@ passport.deserializeUser((id, done) => {
   });
 });
 
-// passport middleware to handle login
+// passport middleware to handle user's login
 passport.use(
   "login",
   new LocalStrategy(
@@ -92,6 +92,7 @@ passport.use(
   )
 );
 
+// passport middleware to handle user's registration
 passport.use(
   "register",
   new LocalStrategy(
@@ -123,6 +124,7 @@ passport.use(
   )
 );
 
+// formatNoteResponse converts SQL result to a more readable format
 function formatNoteResponse(result) {
   let noteList = [];
 
@@ -152,6 +154,7 @@ function formatNoteResponse(result) {
   return noteList;
 }
 
+// getNoteList retrieves all book notes from the database
 async function getNoteList() {
   let db = new pg.Client(dbCfg);
   db.connect();
@@ -166,6 +169,7 @@ async function getNoteList() {
   }
 }
 
+// getNoteById retrieves a single book note by its ID
 async function getNoteById(id) {
   let db = new pg.Client(dbCfg);
   db.connect();
@@ -183,6 +187,7 @@ async function getNoteById(id) {
   }
 }
 
+// createNote inserts a new book note into the database
 async function createNote(note) {
   const db = new pg.Client(dbCfg);
   db.connect();
@@ -213,6 +218,7 @@ async function createNote(note) {
   }
 }
 
+// editNote updates an existing book note in the database
 async function editNote(note) {
   const db = new pg.Client(dbCfg);
   db.connect();
@@ -252,6 +258,7 @@ async function editNote(note) {
   }
 }
 
+// deleteNoteById removes a book note from the database by its ID
 async function deleteNoteById(id) {
   let db = new pg.Client(dbCfg);
   db.connect();
