@@ -1,20 +1,98 @@
 import express from "express";
+import session from "express-session";
 import pg from "pg";
+import env from "dotenv";
+import passport from "passport";
+import LocalStrategy from "passport-local";
+import bcrypt from "bcrypt";
+
+env.config();
 
 const app = express();
 const port = 3000;
-const dbCfg = {
-  host: "localhost",
-  port: 5432,
-  database: "book_notes",
-  user: "postgres",
-  password: "postgres",
-};
+const saltRounds = 12;
 const bookCoverUrl = "https://covers.openlibrary.org/b/isbn/";
 const bookCoverSize = "M";
 const bookCoverFormat = ".jpg";
 
-function formatResponse(result) {
+const dbCfg = {
+  host: process.env.PG_HOST,
+  port: process.env.PG_PORT,
+  database: process.env.PG_DATABASE,
+  user: process.env.PG_USER,
+  password: process.env.PG_PASSWORD,
+};
+
+app.use(express.json());
+
+//session configuration
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+  })
+);
+
+//initialize passport.js with session
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+passport.deserializeUser((id, done) => {
+  const db = new pg.Client(dbCfg);
+  db.connect();
+  db.query("SELECT * FROM users WHERE id = $1", [id], (err, result) => {
+    if (err) {
+      done(err);
+      return;
+    }
+    if (result.rows.length > 0) {
+      done(null, result.rows[0]);
+    } else {
+      done(new Error("User not found"));
+    }
+    db.end();
+  });
+});
+
+// passport middleware to handle login
+passport.use(
+  "login",
+  new LocalStrategy(
+    {
+      usernameField: "username",
+      passwordField: "password",
+    },
+    async (username, password, done) => {
+      const db = new pg.Client(dbCfg);
+      db.connect();
+      try {
+        const result = await db.query(
+          "SELECT * FROM users WHERE username = $1",
+          [username]
+        );
+        if (result.rows.length === 0) {
+          return done(null, false, { message: "User not found" });
+        }
+        const user = result.rows[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+          return done(null, false, { message: "Incorrect password" });
+        }
+        return done(null, user);
+      } catch (err) {
+        return done(err);
+      } finally {
+        db.end();
+      }
+    }
+  )
+);
+
+function formatNoteResponse(result) {
   let noteList = [];
 
   result.rows.forEach((item) => {
@@ -49,7 +127,7 @@ async function getNoteList() {
 
   try {
     const result = await db.query("SELECT * FROM book_notes");
-    return [formatResponse(result), null];
+    return [formatNoteResponse(result), null];
   } catch (err) {
     return [null, err];
   } finally {
@@ -66,7 +144,7 @@ async function getNoteById(id) {
       id,
     ]);
 
-    return [formatResponse(result), null];
+    return [formatNoteResponse(result), null];
   } catch (err) {
     return [null, err];
   } finally {
@@ -96,7 +174,7 @@ async function createNote(note) {
       ]
     );
 
-    return [formatResponse(result), null];
+    return [formatNoteResponse(result), null];
   } catch (err) {
     return [null, err];
   } finally {
@@ -135,7 +213,7 @@ async function editNote(note) {
         note.id,
       ]
     );
-    return [formatResponse(result), null];
+    return [formatNoteResponse(result), null];
   } catch (err) {
     return [null, err];
   } finally {
@@ -157,9 +235,7 @@ async function deleteNoteById(id) {
   }
 }
 
-app.use(express.json());
-
-app.get("/notes", async (_, res) => {
+app.get("/note/list", async (_, res) => {
   var [notes, err] = await getNoteList();
   if (err) {
     res.send({
@@ -332,6 +408,34 @@ app.delete("/note/:id", async (req, res) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Server started on port ${port}`);
+app.post("/login", async (req, res, next) => {
+  passport.authenticate("login", async (err, user, info) => {
+    try {
+      if (err) {
+        return res.status(500).send({ error: err.message });
+      }
+      if (!user) {
+        return res.status(401).send({ error: info.message });
+      }
+      req.login(user, async (err) => {
+        if (err) {
+          return res.status(500).send({ error: err.message });
+        }
+        return res.send({
+          status: 200,
+          message: "Login successful",
+          user: user,
+        });
+      });
+    } catch (error) {
+      return next(error);
+    }
+  })(req, res, next);
+});
+
+app.listen(port, (err) => {
+  if (err) {
+    throw err;
+  }
+  console.log(`Server running on port ${port}`);
 });
