@@ -501,6 +501,18 @@ app.get("/users/login-check", (req, res, next) => {
   }
 });
 
+app.get("/users/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).send({ error: err.message });
+    }
+    return res.send({
+      status: 200,
+      message: "Logout successful",
+    });
+  });
+});
+
 app.listen(port, (err) => {
   if (err) {
     throw err;
