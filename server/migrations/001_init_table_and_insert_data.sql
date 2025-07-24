@@ -1,7 +1,7 @@
 -- CREATE TABLES
 CREATE TABLE IF NOT EXISTS users (
   "id" SERIAL PRIMARY KEY,
-  "username" VARCHAR(50) NOT NULL,
+  "username" VARCHAR(50) UNIQUE NOT NULL,
   "password" VARCHAR(64) NOT NULL,
   "created_at" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -22,8 +22,9 @@ CREATE TABLE IF NOT EXISTS book_notes (
 
 
 -- INSERT DATAS
+-- password: testPassword123
 INSERT INTO users (username, password)
-VALUES ('testUser','$2a$12$cEzrkXYlCFhNpE9uLXgd3.RkhgdZs74rPbG1IcYGezCosMYm1HiCa');
+VALUES ('testUser','$2b$12$gVyhKan2m4xFmtLOgyiInOXFzpmLXj3Xgd86pmIxWkoH1eUSS09sm');
 
 INSERT INTO book_notes(title, author, isbn, cover_url, date_read, score, summary, note)
 VALUES(

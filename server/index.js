@@ -92,6 +92,37 @@ passport.use(
   )
 );
 
+passport.use(
+  "register",
+  new LocalStrategy(
+    {
+      usernameField: "username",
+      passwordField: "password",
+    },
+    async (username, password, done) => {
+      const db = new pg.Client(dbCfg);
+      db.connect();
+      try {
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const result = await db.query(
+          "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *",
+          [username, hashedPassword]
+        );
+        const user = result.rows[0];
+        return done(null, user);
+      } catch (err) {
+        if (err.code === "23505") {
+          // Unique violation error
+          return done(null, false, { message: "User already exists" });
+        }
+        return done(err);
+      } finally {
+        db.end();
+      }
+    }
+  )
+);
+
 function formatNoteResponse(result) {
   let noteList = [];
 
@@ -408,7 +439,7 @@ app.delete("/note/:id", async (req, res) => {
   });
 });
 
-app.post("/login", async (req, res, next) => {
+app.post("/user/login", async (req, res, next) => {
   passport.authenticate("login", async (err, user, info) => {
     try {
       if (err) {
@@ -424,6 +455,31 @@ app.post("/login", async (req, res, next) => {
         return res.send({
           status: 200,
           message: "Login successful",
+          user: user,
+        });
+      });
+    } catch (error) {
+      return next(error);
+    }
+  })(req, res, next);
+});
+
+app.post("/user/register", async (req, res, next) => {
+  passport.authenticate("register", async (err, user, info) => {
+    try {
+      if (err) {
+        return res.status(500).send({ error: err.message });
+      }
+      if (!user) {
+        return res.status(400).send({ error: info.message });
+      }
+      req.login(user, async (err) => {
+        if (err) {
+          return res.status(500).send({ error: err.message });
+        }
+        return res.send({
+          status: 200,
+          message: "Registration successful and logged in",
           user: user,
         });
       });
